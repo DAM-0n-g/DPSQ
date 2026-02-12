@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>渐变暗黑风 - 修复复制弹窗</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 核心：设置渐变背景 */
+        body {
+            background: linear-gradient(135deg, #14142B 0%, #1A1A3A 50%, #1E1E2F 100%);
+            background-attachment: fixed;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* 卡片悬停发光效果 */
+        .card-hover:hover {
+            box-shadow: 0 10px 25px -5px rgba(14, 165, 233, 0.3);
+            transform: translateY(-5px);
+        }
+
+        /* 按钮的渐变边框动画 */
+        .btn-gradient {
+            background: linear-gradient(90deg, #6366F1, #8B5CF6) padding-box,
+                       linear-gradient(90deg, #6366F1, #8B5CF6) border-box;
+            border-radius: 0.75rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-gradient::before {
+            content: '';
+            position: absolute;
+            inset: 1px;
+            border-radius: 0.65rem;
+            background-color: #1F2937;
+        }
+
+        /* === 修复后的 Toast 样式 === */
+        #toast {
+            /* 默认隐藏：通过透明度控制，但保留占位 */
+            opacity: 0;
+            max-width: 250px;
+            background: linear-gradient(90deg, #3B82F6, #8B5CF6);
+            color: white;
+            text-align: center;
+            border-radius: 0.5rem;
+            padding: 12px 20px;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            /* 默认状态下没有动画，只有在触发时才添加 */
+            pointer-events: none; /* 防止弹窗挡住下方元素 */
+        }
+
+        /* 定义动画：从无到有再到无 */
+        @keyframes fadeInOut {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.9);
+            }
+            20% {
+                opacity: 1; /* 灵敏出现 */
+                transform: translateX(-50%) scale(1.05);
+            }
+            80% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1);
+            }
+            100% {
+                opacity: 0; /* 渐渐消失 */
+                transform: translateX(-50%) scale(0.95);
+            }
+        }
+
+        /* JS 会动态添加这个类来触发动画 */
+        .show {
+            animation: fadeInOut 2s ease-in-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans text-gray-200">
+
+    <!-- 装饰性背景圆 -->
+    <div class="fixed inset-0 pointer-events-none">
+        <div class="absolute -top-20 -left-20 w-80 h-80 bg-purple-900/20 rounded-full blur-3xl"></div>
+        <div class="absolute top-1/2 -right-40 w-96 h-96 bg-blue-900/20 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="relative bg-gray-900/40 backdrop-blur-lg border-b border-gray-700/50 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                        ✨ GRADIENT
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区 -->
+    <main class="relative pt-20 pb-24">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <section class="text-center mb-24">
+                <h1 class="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
+                    <span class="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                        沉浸式
+                    </span>
+                    <br>
+                    <span class="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        现代暗黑体验
+                    </span>
+                </h1>
+                <p class="text-xl text-gray-400 max-w-3xl mx-auto mb-12">
+                    点击下方按钮复制专属链接
+                </p>
+                <!-- 复制按钮 -->
+                <button id="copyBtn" class="btn-gradient px-8 py-4 text-white font-medium text-lg relative z-10 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                    点击复制邀请链接
+                </button>
+            </section>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="relative border-t border-gray-800 py-12 text-center text-gray-500 text-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            &copy; 2026 Modern Gradient UI.
+        </div>
+    </footer>
+
+    <!-- 提示框 DOM 元素 -->
+    <!-- 注意：这里去掉了 hidden 类，由 CSS 控制显示 -->
+    <div id="toast">✅ 复制成功！</div>
+
+    <!-- JavaScript 逻辑 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const copyBtn = document.getElementById('copyBtn');
+            const toast = document.getElementById('toast');
+            const textToCopy = 'https://kook.vip/wwfPMS';
+
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(textToCopy);
+                    showToast();
+                } catch (err) {
+                    console.error('复制失败:', err);
+                    // 如果 toast 动画机制复杂，直接用原生 alert 保底
+                    alert('复制成功！请粘贴分享。');
+                }
+            });
+
+            function showToast() {
+                // 关键修复：强制重置动画
+                // 1. 移除动画类
+                toast.classList.remove('show');
+                
+                // 2. 触发重绘 (Reflow)，让浏览器认为元素状态已重置
+                void toast.offsetWidth;
+                
+                // 3. 重新添加动画类，触发 CSS 动画
+                toast.classList.add('show');
+            }
+        });
+    </script>
+
+</body>
+</html>
